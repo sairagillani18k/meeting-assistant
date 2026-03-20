@@ -1,0 +1,8 @@
+streamlit
+openai-whisper
+torch==2.1.0
+sentence-transformers==2.6.1
+transformers==4.41.2
+faiss-cpu
+numpy==1.26.4
+safetensors==0.4.2
