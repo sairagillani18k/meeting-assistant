@@ -1,9 +1,12 @@
 import streamlit as st
-import whisper
+from faster_whisper import WhisperModel
 from sentence_transformers import SentenceTransformer
 import faiss
 import numpy as np
 
+# -----------------------------
+# Page config
+# -----------------------------
 st.set_page_config(page_title="Meeting Intelligence Assistant", layout="wide")
 
 st.title("🎧 Meeting Intelligence Assistant")
@@ -14,7 +17,7 @@ st.write("Upload a meeting recording and ask questions to find exact moments.")
 # -----------------------------
 @st.cache_resource
 def load_whisper():
-    return whisper.load_model("base")
+    return WhisperModel("base")
 
 @st.cache_resource
 def load_embedder():
@@ -26,21 +29,27 @@ embed_model = load_embedder()
 # -----------------------------
 # File upload
 # -----------------------------
-uploaded_file = st.file_uploader("Upload audio file", type=["mp3", "wav", "m4a"])
+uploaded_file = st.file_uploader("📂 Upload audio file", type=["mp3", "wav", "m4a"])
 
 if uploaded_file:
+    # Save uploaded file
     with open("temp_audio.mp3", "wb") as f:
         f.write(uploaded_file.read())
 
-    with st.spinner("⏳ Transcribing audio..."):
-        result = whisper_model.transcribe("temp_audio.mp3", fp16=False)
+    st.info("⏳ Processing audio... Please wait.")
+
+    # -----------------------------
+    # Transcription
+    # -----------------------------
+    with st.spinner("Transcribing audio..."):
+        segments, _ = whisper_model.transcribe("temp_audio.mp3")
 
     chunks = []
-    for seg in result["segments"]:
+    for seg in segments:
         chunks.append({
-            "text": seg["text"].strip(),
-            "start": seg["start"],
-            "end": seg["end"]
+            "text": seg.text.strip(),
+            "start": seg.start,
+            "end": seg.end
         })
 
     st.success("✅ Transcription complete!")
@@ -49,7 +58,9 @@ if uploaded_file:
     # Embeddings + FAISS
     # -----------------------------
     texts = [c["text"] for c in chunks]
-    embeddings = embed_model.encode(texts)
+
+    with st.spinner("Generating embeddings..."):
+        embeddings = embed_model.encode(texts)
 
     index = faiss.IndexFlatL2(len(embeddings[0]))
     index.add(np.array(embeddings))
@@ -57,7 +68,7 @@ if uploaded_file:
     st.success("✅ Ready! Ask your question below.")
 
     # -----------------------------
-    # Search
+    # Search function
     # -----------------------------
     def search(query, k=3):
         q_emb = embed_model.encode([query])
@@ -65,7 +76,7 @@ if uploaded_file:
         return [chunks[i] for i in I[0]]
 
     # -----------------------------
-    # Query UI
+    # Query input
     # -----------------------------
     query = st.text_input("🔍 Ask a question about the meeting:")
 
