@@ -42,7 +42,7 @@ if uploaded_file:
     # Transcription
     # -----------------------------
     with st.spinner("Transcribing audio..."):
-        segments, _ = whisper_model.transcribe("temp_audio.mp3")
+        segments, _ = whisper_model.transcribe("temp_audio.mp3" , language="en")
 
     chunks = []
     for seg in segments:
